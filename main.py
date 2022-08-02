@@ -35,7 +35,7 @@ def check_flights():
         WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//*[contains(@aria-label, 'Trip Type Menu')]"))).click()
         WebDriverWait(driver, 2).until(EC.presence_of_element_located((By.XPATH, f"//*[@id='downshift-0-item-{i}']"))).click()
         try:    
-            WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, f"//*[contains(@aria-label, 'Trip Type Menu, {flight_type} selected')]")))
+            WebDriverWait(driver, 2).until(EC.presence_of_element_located((By.XPATH, f"//*[contains(@aria-label, 'Trip Type Menu, {flight_type} selected')]")))
             break
         except TimeoutException:
             continue
@@ -49,53 +49,50 @@ def check_flights():
     """
 
     #get list of runway elements
-    runways = WebDriverWait(driver, 5).until(EC.presence_of_all_elements_located((By.XPATH, "//*[contains(@class, 'runway-popup-field__button')]")))
+    runways = WebDriverWait(driver, 2).until(EC.presence_of_all_elements_located((By.XPATH, "//*[contains(@class, 'runway-popup-field__button')]")))
 
     for idx, runway in enumerate(runways):
         #select number of people
         if idx == 0:
             continue
 
-        #qantas likely has some detection that doesn't recognise inputting text so the element must be moved to. NOTE: sleeps are required
+        #NOTE: sleeps are required or site won't recognise input, WebDriverWait wasn't playing nicely nor was element_to_be_clickable
         elif 1 <= idx <= 2:
             input_val = 0 if idx == 1 else 1
             action.move_to_element(runway).click().perform()
             sleep(2)
-            WebDriverWait(runway, 5).until(EC.presence_of_element_located((By.XPATH, "//*[@class='css-1mu1mk2']"))).send_keys(tofrom[input_val])
+            WebDriverWait(runway, 2).until(EC.presence_of_element_located((By.XPATH, "//*[@class='css-1mu1mk2']"))).send_keys(tofrom[input_val])
             sleep(2)
-            WebDriverWait(runway, 5).until(EC.presence_of_element_located((By.XPATH, "//*[@class='css-1mu1mk2']"))).send_keys(Keys.ENTER)
+            WebDriverWait(runway, 2).until(EC.presence_of_element_located((By.XPATH, "//*[@class='css-1mu1mk2']"))).send_keys(Keys.ENTER)
         else:
-            #click the cookies button if its in the way
+            #select travel dates
             try:
-                WebDriverWait(runway, 2).until(EC.presence_of_element_located((By.XPATH, "//*[@class='optanon-alert-box-button-middle accept-cookie-container']"))).click()
+                #remove cookie popup
+                WebDriverWait(runway, 2).until(EC.element_to_be_clickable((By.XPATH, "//*[@class='optanon-alert-box-button-middle accept-cookie-container']"))).click()
             except TimeoutException:
                 pass
 
             action.move_to_element(runway).click().perform()
-
-            #move within date window
             sleep(2)
-
-            #click on today twice to interact with the date menu
             WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, f"//*[contains(@aria-label, '{today}')]"))).click()
             
             for i in range(11):
                 if i == 10: return
                 try:
                     driver.execute_script("arguments[0].scrollIntoView();", driver.find_element(By.XPATH, f"//*[contains(@aria-label, '{travel_date}')]"))
-                    WebDriverWait(runway, 1).until(EC.presence_of_element_located((By.XPATH, f"//*[contains(@aria-label, '{travel_date}')]"))).click()
+                    WebDriverWait(runway, 1).until(EC.element_to_be_clickable((By.XPATH, f"//*[contains(@aria-label, '{travel_date}')]"))).click()
                     break
                 except (TimeoutException, NoSuchElementException):
                     driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.PAGE_DOWN)
                     continue
 
             sleep(1)
-            WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, "//*[contains(@data-testid, 'dialogConfirmation')]"))).click()
+            WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.XPATH, "//*[contains(@data-testid, 'dialogConfirmation')]"))).click()
 
-    WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, "//*[@class='submit-btn']"))).click()
+    WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.XPATH, "//*[@class='submit-btn']"))).click()
 
     try:
-        WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, "//*[@class='shape-top-right-container ng-star-inserted']")))
+        WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, "//*[@class='shape-top-right-container ng-star-inserted']")))
         reward_found = True
     except TimeoutException:
         pass
