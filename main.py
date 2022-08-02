@@ -125,15 +125,6 @@ def check_flights(travel_date, travel_to, travel_from, travellers, flight_type):
     return reward_found
 
 
-def send_gmail():
-    pass
-    # #create message
-    # message = f'Flights found from {tofrom[0]} to {tofrom[1]} on {travel_date}'
-
-    # yag = yagmail.SMTP('benmabolton@gmail.com', 'sfmmjcwscbgedwjz')
-    # yag.send(to='bmbolton@tpg.com.au', subject='Reward flights found', contents=message)
-
-
 def build_args():
     parser = argparse.ArgumentParser(description='Qantas Reward Flight Finder')
     grouper = parser.add_mutually_exclusive_group()
