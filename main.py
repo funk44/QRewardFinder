@@ -6,7 +6,6 @@ from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
 import undetected_chromedriver as uc
-import yagmail
 import datetime
 import argparse
 import validations
