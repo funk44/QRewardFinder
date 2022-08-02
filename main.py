@@ -8,6 +8,7 @@ from selenium.webdriver.common.keys import Keys
 import undetected_chromedriver as uc
 import datetime
 import argparse
+from argparse import RawTextHelpFormatter
 import validations
 
 from time import sleep
@@ -125,7 +126,7 @@ def check_flights(travel_date, travel_to, travel_from, travellers, flight_type):
 
 
 def build_args():
-    parser = argparse.ArgumentParser(description='Qantas Reward Flight Finder')
+    parser = argparse.ArgumentParser(description="""Qantas Reward Flight Finder \n\tTool is mostly useful for international flights but can also be used to domestic travel \n\tFor detailed usage and search tips see https://github.com/funk44/QRewardFinder""", formatter_class=RawTextHelpFormatter)
     grouper = parser.add_mutually_exclusive_group()
     parser.add_argument('-f','--from', help='The airport you are travelling from (more detail is better e.g. Melbourne, Australia)', required=True, type=str, metavar='')
     parser.add_argument('-t','--to', help='The airport you are travelling to (more detail is better e.g. Singapore, Singapore)', required=True, type=str, metavar='')
