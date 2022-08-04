@@ -8,13 +8,16 @@ from selenium.webdriver.common.keys import Keys
 import undetected_chromedriver as uc
 import datetime
 import argparse
-from argparse import RawTextHelpFormatter
 import validations
+from argparse import RawTextHelpFormatter
 
+from pathlib import Path
 from time import sleep
 
 #todays date to interact with date window
 today = datetime.datetime.today().strftime('%a %b %d %Y')
+
+driver_path = Path(__file__).parent
 
 
 def worker():
@@ -27,14 +30,14 @@ def worker():
             print(f'\t{val}')
         return
     
-    if check_flights(travel_date, args['to'], args['from'], args['people'], args['option']):
+    if check_flights(travel_date, args['to'], args['from'], args['people'], args['option'], args['class']):
         print('Reward flights found')
     else:
         print('No reward flights found')
 
 
-def check_flights(travel_date, travel_to, travel_from, travellers, flight_type):
-    reward_found = False
+def check_flights(travel_date, travel_to, travel_from, travellers, flight_type, travel_class):
+    flights_found = []
 
     driver = uc.Chrome(use_subprocess=True)
     driver.get('https://www.qantas.com/')
@@ -114,19 +117,37 @@ def check_flights(travel_date, travel_to, travel_from, travellers, flight_type):
 
     WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.XPATH, "//*[@class='submit-btn']"))).click()
 
-    try:
-        WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, "//*[@class='shape-top-right-container ng-star-inserted']")))
-        reward_found = True
-    except TimeoutException:
-        pass
+    if travel_class == 0 or travel_class == 2:
+        flights_found.append('Economy flights found!') if detect_rewards(driver, travel_class) else flights_found.append('No economy flights')
+    elif travel_class == 1:
+        flights_found.append('Business flights found!') if detect_rewards(driver, travel_class) else flights_found.append('No business flights')
+    else:
+        flights_found.append('Economy flights found!') if detect_rewards(driver, 0) else flights_found.append('No economy flights')
+        flights_found.append('Business flights found!') if detect_rewards(driver, 1) else flights_found.append('No business flights')
 
     driver.quit()
 
-    return reward_found
+    return True if 'found' in (x for s in flights_found for x in s) else False
+
+
+def detect_rewards(driver, travel_class):
+
+    xpath = 'ECO' if travel_class == 0 else 'BUS'
+
+    #check if you are already on the right page, otherwise navigate to the correct flight class
+    if WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, f"//*[@value='{xpath}']"))).get_attribute('aria-selected') == 'false':
+        WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, f"//*[@value='{xpath}']"))).click()
+
+    try:
+        WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, "//*[@class='shape-top-right-container ng-star-inserted']")))
+        return True
+    except TimeoutException:
+        return False
 
 
 def build_args():
-    parser = argparse.ArgumentParser(description="""Qantas Reward Flight Finder \n\tTool is mostly useful for international flights but can also be used to domestic travel \n\tFor detailed usage and search tips see https://github.com/funk44/QRewardFinder""", formatter_class=RawTextHelpFormatter)
+    parser = argparse.ArgumentParser(description="""Qantas Reward Flight Finder \n\tTool is mostly useful for international flights but can also be used to domestic travel \n\tFor detailed usage and search tips see https://github.com/funk44/QRewardFinder""", 
+                                    formatter_class=RawTextHelpFormatter, prog='Reward Flight Finder')
     grouper = parser.add_mutually_exclusive_group()
     parser.add_argument('-f','--from', help='The airport you are travelling from (more detail is better e.g. Melbourne, Australia)', required=True, type=str, metavar='')
     parser.add_argument('-t','--to', help='The airport you are travelling to (more detail is better e.g. Singapore, Singapore)', required=True, type=str, metavar='')
@@ -135,6 +156,7 @@ def build_args():
     grouper.add_argument('-c','--class', help='Travel class. Options are: 0 - Economy, 1 - Business, 2 - Economy & Business', required=False, choices={0,1,2}, default=0, type=int, metavar='')
     grouper.add_argument('-o','--option', help='Flight type. Options are: 0 - One Way, 1 - Return. Default is 0 (One Way)', required=False, choices={0,1}, default=0, type=int, metavar='')
     grouper.add_argument('-r','--return', help='Return flight date. Only required if return flight selected', required=False, type=str, metavar='')
+    grouper.add_argument('-v','--verbose', help='By default QRFF will only search for the best flights, turning this on will enable a full search', required=False, action='store_true')
     grouper.add_argument('-e','--email', help='Schedule and alert via email. NOTE: Requires JSON to be populated with additional detail', required=False, action='store_true')
     
     return vars(parser.parse_args())
@@ -152,6 +174,7 @@ def validate_args(args):
         val_flag = False
 
     return val_flag, val_errors, travel_date
+
 
 if __name__ == '__main__':
     worker()
