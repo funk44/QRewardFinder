@@ -1,3 +1,4 @@
+from ast import arg
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -22,7 +23,7 @@ driver_path = Path(__file__).parent
 
 def worker():
     args = build_args()
-    val_flag, val_errors, travel_date = validate_args(args)
+    val_flag, val_errors, travel_date, travel_class = validate_and_build_args(args)
 
     if not val_flag:
         print('Errors found in arguments:')
@@ -30,10 +31,9 @@ def worker():
             print(f'\t{val}')
         return
     
-    if check_flights(travel_date, args['to'], args['from'], args['people'], args['option'], args['class']):
-        print('Reward flights found')
-    else:
-        print('No reward flights found')
+    returns = check_flights(travel_date, args['to'], args['from'], args['people'], args['option'], travel_class)
+    for x in returns:
+        print(x)
 
 
 def check_flights(travel_date, travel_to, travel_from, travellers, flight_type, travel_class):
@@ -102,8 +102,8 @@ def check_flights(travel_date, travel_to, travel_from, travellers, flight_type, 
             sleep(2)
             WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, f"//*[contains(@aria-label, '{today}')]"))).click()
             
-            for i in range(11):
-                if i == 10: return
+            for i in range(10):
+                if i == 9: return
                 try:
                     driver.execute_script("arguments[0].scrollIntoView();", driver.find_element(By.XPATH, f"//*[contains(@aria-label, '{travel_date}')]"))
                     WebDriverWait(runway, 1).until(EC.element_to_be_clickable((By.XPATH, f"//*[contains(@aria-label, '{travel_date}')]"))).click()
@@ -117,41 +117,53 @@ def check_flights(travel_date, travel_to, travel_from, travellers, flight_type, 
 
     WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.XPATH, "//*[@class='submit-btn']"))).click()
 
-    if travel_class == 0 or travel_class == 2:
-        flights_found.append('Economy flights found!') if detect_rewards(driver, travel_class) else flights_found.append('No economy flights')
-    elif travel_class == 1:
-        flights_found.append('Business flights found!') if detect_rewards(driver, travel_class) else flights_found.append('No business flights')
-    else:
-        flights_found.append('Economy flights found!') if detect_rewards(driver, 0) else flights_found.append('No economy flights')
-        flights_found.append('Business flights found!') if detect_rewards(driver, 1) else flights_found.append('No business flights')
+    #continue on currency prompt
+    try:
+        WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//*[@class='btn btn-primary qf-continue']"))).click()
+    except TimeoutException:
+        pass
+
+    for key, val in travel_class.items():
+        flights_found.append(f'{val} class flights found :D') if detect_rewards(driver, key) else flights_found.append(f'No {val} class flights found :(')
 
     driver.quit()
 
-    return True if 'found' in (x for s in flights_found for x in s) else False
+    return flights_found
 
 
 def detect_rewards(driver, travel_class):
 
-    xpath = 'ECO' if travel_class == 0 else 'BUS'
-
     #check if you are already on the right page, otherwise navigate to the correct flight class
-    if WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, f"//*[@value='{xpath}']"))).get_attribute('aria-selected') == 'false':
-        WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, f"//*[@value='{xpath}']"))).click()
+    if WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, f"//*[@value='{travel_class}']"))).get_attribute('aria-selected') == 'false':
+        WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, f"//*[@value='{travel_class}']"))).click()
+
+        load_complete = False
+        while not load_complete:
+            load_complete = check_loading(driver)
 
     try:
-        WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, "//*[@class='shape-top-right-container ng-star-inserted']")))
+        WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, "//*[@class='shape-top-right-container ng-star-inserted']")))
         return True
     except TimeoutException:
         return False
+
+
+def check_loading(driver):
+    try:
+        driver.find_element(By.XPATH, "//*[@class='loading-flights-text']")
+    except NoSuchElementException:
+        return True
+    finally:
+        sleep(0.3)
 
 
 def build_args():
     parser = argparse.ArgumentParser(description="""Qantas Reward Flight Finder \n\tTool is mostly useful for international flights but can also be used to domestic travel \n\tFor detailed usage and search tips see https://github.com/funk44/QRewardFinder""", 
                                     formatter_class=RawTextHelpFormatter, prog='Reward Flight Finder')
     grouper = parser.add_mutually_exclusive_group()
-    parser.add_argument('-f','--from', help='The airport you are travelling from (more detail is better e.g. Melbourne, Australia)', required=True, type=str, metavar='')
-    parser.add_argument('-t','--to', help='The airport you are travelling to (more detail is better e.g. Singapore, Singapore)', required=True, type=str, metavar='')
-    parser.add_argument('-d','--departure', help='Date of departure. Accepted formats are: YYYYMMDD, YYYY-MM-DD & DD/MM/YYYY', required=True, type=str, metavar='')
+    parser.add_argument('-f','--from', help='(Required) The airport you are travelling from (more detail is better e.g. Melbourne, Australia)', required=True, type=str, metavar='')
+    parser.add_argument('-t','--to', help='(Required) The airport you are travelling to (more detail is better e.g. Singapore, Singapore)', required=True, type=str, metavar='')
+    parser.add_argument('-d','--departure', help='(Required) Date of departure. Accepted formats are: YYYYMMDD, YYYY-MM-DD & DD/MM/YYYY', required=True, type=str, metavar='')
     grouper.add_argument('-p','--people', help='Number of people travelling. Default is 1', required=False, default=1, type=int, metavar='')
     grouper.add_argument('-c','--class', help='Travel class. Options are: 0 - Economy, 1 - Business, 2 - Economy & Business', required=False, choices={0,1,2}, default=0, type=int, metavar='')
     grouper.add_argument('-o','--option', help='Flight type. Options are: 0 - One Way, 1 - Return. Default is 0 (One Way)', required=False, choices={0,1}, default=0, type=int, metavar='')
@@ -162,7 +174,7 @@ def build_args():
     return vars(parser.parse_args())
 
 
-def validate_args(args):
+def validate_and_build_args(args):
 
     val_flag = True
     val_errors = []
@@ -173,10 +185,16 @@ def validate_args(args):
         val_errors.append('Incorrect travel date format')
         val_flag = False
 
-    return val_flag, val_errors, travel_date
+    #travel class NOTE: will be extended to other classes
+    if args['class'] == 0:
+        travel_class = {'ECO': 'Economy'}
+    elif args['class'] == 1:
+        travel_class = {'BUS': 'Business'}
+    else:
+        travel_class = {'ECO': 'Economy', 'BUS': 'Business'}
+
+    return val_flag, val_errors, travel_date, travel_class
 
 
 if __name__ == '__main__':
     worker()
-
-
