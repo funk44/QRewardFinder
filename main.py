@@ -1,4 +1,3 @@
-from ast import arg
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -6,11 +5,12 @@ from selenium.webdriver import ActionChains
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
+
+from argparse import RawTextHelpFormatter, ArgumentParser
+
 import undetected_chromedriver as uc
 import datetime
-import argparse
-import validations
-from argparse import RawTextHelpFormatter
+import helpers
 
 from pathlib import Path
 from time import sleep
@@ -23,9 +23,9 @@ driver_path = Path(__file__).parent
 
 def worker():
     args = build_args()
-    val_flag, val_errors, travel_date, travel_class = validate_and_build_args(args)
+    val_errors, travel_date, travel_class = validate_and_build_args(args)
 
-    if not val_flag:
+    if val_errors:
         print('Errors found in arguments:')
         for val in val_errors:
             print(f'\t{val}')
@@ -35,7 +35,7 @@ def worker():
     for x in returns:
         print(x)
 
-
+ 
 def check_flights(travel_date, travel_to, travel_from, travellers, flight_type, travel_class):
     flights_found = []
 
@@ -46,13 +46,13 @@ def check_flights(travel_date, travel_to, travel_from, travellers, flight_type, 
     action = ActionChains(driver)
 
     #open the flight accordian
-    WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, "//*[@aria-controls='flights']"))).click()
+    WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.XPATH, "//*[@aria-controls='flights']"))).click()
 
     #select the flight type
     flight_type = 'One way' if flight_type == 0 else 'Return'
     for i in range(2):
-        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//*[contains(@aria-label, 'Trip Type Menu')]"))).click()
-        WebDriverWait(driver, 2).until(EC.presence_of_element_located((By.XPATH, f"//*[@id='downshift-0-item-{i}']"))).click()
+        WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//*[contains(@aria-label, 'Trip Type Menu')]"))).click()
+        WebDriverWait(driver, 2).until(EC.element_to_be_clickable((By.XPATH, f"//*[@id='downshift-0-item-{i}']"))).click()
         try:    
             WebDriverWait(driver, 2).until(EC.presence_of_element_located((By.XPATH, f"//*[contains(@aria-label, 'Trip Type Menu, {flight_type} selected')]")))
             break
@@ -158,7 +158,7 @@ def check_loading(driver):
 
 
 def build_args():
-    parser = argparse.ArgumentParser(description="""Qantas Reward Flight Finder \n\tTool is mostly useful for international flights but can also be used to domestic travel \n\tFor detailed usage and search tips see https://github.com/funk44/QRewardFinder""", 
+    parser = ArgumentParser(description="""Qantas Reward Flight Finder \n\tTool is mostly useful for international flights but can also be used for domestic travel \n\tFor detailed usage and search tips see https://github.com/funk44/QRewardFinder""", 
                                     formatter_class=RawTextHelpFormatter, prog='Reward Flight Finder')
     grouper = parser.add_mutually_exclusive_group()
     parser.add_argument('-f','--from', help='(Required) The airport you are travelling from (more detail is better e.g. Melbourne, Australia)', required=True, type=str, metavar='')
@@ -175,15 +175,12 @@ def build_args():
 
 
 def validate_and_build_args(args):
-
-    val_flag = True
     val_errors = []
 
     #dates
-    travel_date = validations.validate_date(args['departure'])
+    travel_date = helpers.validate_date(args['departure'])
     if not travel_date:
         val_errors.append('Incorrect travel date format')
-        val_flag = False
 
     #travel class NOTE: will be extended to other classes
     if args['class'] == 0:
@@ -193,7 +190,7 @@ def validate_and_build_args(args):
     else:
         travel_class = {'ECO': 'Economy', 'BUS': 'Business'}
 
-    return val_flag, val_errors, travel_date, travel_class
+    return val_errors, travel_date, travel_class
 
 
 if __name__ == '__main__':
