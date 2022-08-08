@@ -3,27 +3,25 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver import ActionChains
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
 
 from argparse import RawTextHelpFormatter, ArgumentParser
 
-import undetected_chromedriver as uc
 import datetime
 import helpers
 
 from pathlib import Path
 from time import sleep
 
+driver_path = Path(__file__).parent
+
 #todays date to interact with date window
 today = datetime.datetime.today().strftime('%a %b %d %Y')
-
-driver_path = Path(__file__).parent
 
 
 def worker():
     args = build_args()
-    val_errors, travel_date, travel_class = validate_and_build_args(args)
+    val_errors, travel_date, return_date, travel_class = validate_and_build_args(args)
 
     if val_errors:
         print('Errors found in arguments:')
@@ -31,15 +29,15 @@ def worker():
             print(f'\t{val}')
         return
     
-    returns = check_flights(travel_date, args['to'], args['from'], args['people'], args['option'], travel_class)
+    returns = check_flights(travel_date, return_date, args['to'], args['from'], args['people'], args['option'], travel_class, args['verbose'])
     for x in returns:
         print(x)
 
  
-def check_flights(travel_date, travel_to, travel_from, travellers, flight_type, travel_class):
+def check_flights(travel_date, return_date, travel_to, travel_from, travellers, flight_type, travel_class, verbose):
     flights_found = []
 
-    driver = uc.Chrome(use_subprocess=True)
+    driver = helpers.webdriver_options()
     driver.get('https://www.qantas.com/')
 
     #mouse movement
@@ -68,7 +66,7 @@ def check_flights(travel_date, travel_to, travel_from, travellers, flight_type, 
             First element (0) is number of travellers
             Second Element (1) is departing location
             Third element (2) is destination
-            Forth element (3) is travel dates
+            Forth element (3) is travel date(s)
         """
         if idx == 0:
             action.move_to_element(runway).click().perform()
@@ -91,7 +89,6 @@ def check_flights(travel_date, travel_to, travel_from, travellers, flight_type, 
             sleep(2)
             WebDriverWait(runway, 2).until(EC.presence_of_element_located((By.XPATH, "//*[@class='css-1mu1mk2']"))).send_keys(Keys.ENTER)
         else:
-            #select travel dates
             try:
                 #remove cookie popup
                 WebDriverWait(runway, 2).until(EC.element_to_be_clickable((By.XPATH, "//*[@class='optanon-alert-box-button-middle accept-cookie-container']"))).click()
@@ -177,12 +174,20 @@ def build_args():
 def validate_and_build_args(args):
     val_errors = []
 
-    #dates
+    #departure date
     travel_date = helpers.validate_date(args['departure'])
-    if not travel_date:
-        val_errors.append('Incorrect travel date format')
+    if not helpers.too_far_future(travel_date): val_errors.append('Departure date is too far in the future')
 
-    #travel class NOTE: will be extended to other classes
+    #return date
+    if args['return']:
+        return_date = helpers.validate_date(args['return'])
+        if not return_date: val_errors.append('Incorrect travel date format')
+        if not helpers.check_dates(travel_date, return_date): val_errors.append('Return date is before departure date')
+        if not helpers.too_far_future(return_date): val_errors.append('Return date is too far in the future')
+    else:
+        return_date = None
+        
+    #build travel class into dict
     if args['class'] == 0:
         travel_class = {'ECO': 'Economy'}
     elif args['class'] == 1:
@@ -190,7 +195,7 @@ def validate_and_build_args(args):
     else:
         travel_class = {'ECO': 'Economy', 'BUS': 'Business'}
 
-    return val_errors, travel_date, travel_class
+    return val_errors, travel_date, return_date, travel_class
 
 
 if __name__ == '__main__':
