@@ -52,10 +52,9 @@ def check_flights(driver, travel_date, travel_class, args, flip_flights):
 
         NOTE: Sleeps are required as WebDriverWait wasn't playing nicely
     """
+    
     flights_found = []
-
     driver.get('https://www.qantas.com/')
-
     action = ActionChains(driver)
 
     WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.XPATH, "//*[@aria-controls='flights']"))).click()
@@ -220,7 +219,6 @@ def validate_and_build_args(args):
     val_errors = []
     travel_dates = []
 
-    #departure date validations
     dep_date = helpers.validate_date(args['departure'])
     if not dep_date:
         val_errors.append('Incorrect departure date format')
