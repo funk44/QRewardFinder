@@ -57,8 +57,10 @@ def check_flights(driver, travel_date, travel_class, args, flip_flights):
     driver.get('https://www.qantas.com/')
     action = ActionChains(driver)
 
+
     WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.XPATH, "//*[@aria-controls='flights']"))).click()
 
+    print('Selecting trip type')
     for i in range(2): #trip type
         WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//*[contains(@aria-label, 'Trip Type Menu')]"))).click()
         WebDriverWait(driver, 2).until(EC.element_to_be_clickable((By.XPATH, f"//*[@id='downshift-0-item-{i}']"))).click()
@@ -71,6 +73,7 @@ def check_flights(driver, travel_date, travel_class, args, flip_flights):
     runways = WebDriverWait(driver, 5).until(EC.presence_of_all_elements_located((By.XPATH, "//*[contains(@class, 'runway-popup-field__button')]")))
     sleep(2)
 
+    print('Setting travellers')
     for idx, runway in enumerate(runways):
         if idx == 0: #NUMBER OF TRAVELLERS
             action.move_to_element(runway).click().perform()
@@ -83,6 +86,7 @@ def check_flights(driver, travel_date, travel_class, args, flip_flights):
             #confirm button
             WebDriverWait(runway, 2).until(EC.presence_of_element_located((By.XPATH, "//*[@class='css-vbrrm8-baseStyles-baseStyles-baseStyles-solidStyles-solidStyles-solidStyles-Button']"))).click()
             
+            print('Setting departure and destination locations')
         elif 1 <= idx <= 2: #LOCATIONS
             if not flip_flights:
                 flight_text = 'Depature -'
@@ -97,6 +101,7 @@ def check_flights(driver, travel_date, travel_class, args, flip_flights):
             sleep(2)
             WebDriverWait(runway, 2).until(EC.presence_of_element_located((By.XPATH, "//*[@class='css-1mu1mk2']"))).send_keys(Keys.ENTER)
         else: #TRAVEL DATE
+            print('Selecting travel date')
             try:
                 #remove cookie popup
                 WebDriverWait(runway, 2).until(EC.element_to_be_clickable((By.XPATH, "//*[@class='optanon-alert-box-button-middle accept-cookie-container']"))).click()
@@ -129,7 +134,9 @@ def check_flights(driver, travel_date, travel_class, args, flip_flights):
         pass
 
     for key, val in travel_class.items():
+        print('Checking for reward flights')
         flights_found.append(f'{flight_text} {val} class flights found :D') if detect_rewards(driver, key, args['verbose']) else flights_found.append(f'{flight_text} No {val} class flights found :(')
+        print('Checking for other flights')
         flights_found.extend(detect_surrounding_flights(driver))
 
     return flights_found
@@ -276,6 +283,6 @@ if __name__ == '__main__':
 
     for x in flight_info:
         if not 'Alt' in x:
-            print(x)
+            print(f'\n{x}')
         else:
             print(f'\t{x}')

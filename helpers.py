@@ -38,8 +38,8 @@ def get_driver():
     driver_path = Path(__file__).parent
 
     options = uc.ChromeOptions()
-    options.headless=True
-    options.add_argument('--ignore-certificate-errors')
-    options.add_argument('--headless')
+    # options.headless=True
+    # options.add_argument('--ignore-certificate-errors')
+    # options.add_argument('--headless')
 
     return uc.Chrome(use_subprocess=True, options=options, suppress_welcome=True)
