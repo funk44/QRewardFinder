@@ -3,6 +3,7 @@ from dateutil.relativedelta import relativedelta
 from pathlib import Path
 import undetected_chromedriver as uc
 from pathlib import Path
+from fake_useragent import UserAgent
 
 
 def validate_date(date_val):
@@ -35,11 +36,13 @@ def too_far_future(travel_date):
 
 def get_driver():
     """Returns headless chromedriver"""
-    driver_path = Path(__file__).parent
+    ua = UserAgent()
+    user_agent = ua.random
 
     options = uc.ChromeOptions()
-    # options.headless=True
-    # options.add_argument('--ignore-certificate-errors')
-    # options.add_argument('--headless')
+    #options.headless = True
+    # options.add_argument("--window-size=1920,1080")
+    # options.add_argument("start-maximized")
+
 
     return uc.Chrome(use_subprocess=True, options=options, suppress_welcome=True)

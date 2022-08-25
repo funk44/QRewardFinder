@@ -23,8 +23,10 @@ def flights_worker(args, driver, travel_date, travel_class, err_count, flip_flig
        a few mintes and restarting
     """
     try:
+        print('Checking for x flights')
         flights_found = check_flights(driver, travel_date, travel_class, args, flip_flights)
     except Exception as e:
+        print(e)
         if err_count == 2:
             print('Maximum retries exceeded. Exiting...')
             sys.exit(0)
@@ -55,12 +57,12 @@ def check_flights(driver, travel_date, travel_class, args, flip_flights):
     
     flights_found = []
     driver.get('https://www.qantas.com/')
+    #driver.set_window_size(1920,1080)
     action = ActionChains(driver)
-
 
     WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.XPATH, "//*[@aria-controls='flights']"))).click()
 
-    print('Selecting trip type')
+    print('\tSelecting trip type')
     for i in range(2): #trip type
         WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//*[contains(@aria-label, 'Trip Type Menu')]"))).click()
         WebDriverWait(driver, 2).until(EC.element_to_be_clickable((By.XPATH, f"//*[@id='downshift-0-item-{i}']"))).click()
@@ -73,7 +75,7 @@ def check_flights(driver, travel_date, travel_class, args, flip_flights):
     runways = WebDriverWait(driver, 5).until(EC.presence_of_all_elements_located((By.XPATH, "//*[contains(@class, 'runway-popup-field__button')]")))
     sleep(2)
 
-    print('Setting travellers')
+    print('\tSetting travellers')
     for idx, runway in enumerate(runways):
         if idx == 0: #NUMBER OF TRAVELLERS
             action.move_to_element(runway).click().perform()
@@ -86,7 +88,7 @@ def check_flights(driver, travel_date, travel_class, args, flip_flights):
             #confirm button
             WebDriverWait(runway, 2).until(EC.presence_of_element_located((By.XPATH, "//*[@class='css-vbrrm8-baseStyles-baseStyles-baseStyles-solidStyles-solidStyles-solidStyles-Button']"))).click()
             
-            print('Setting departure and destination locations')
+            print('\tSetting departure and destination locations')
         elif 1 <= idx <= 2: #LOCATIONS
             if not flip_flights:
                 flight_text = 'Depature -'
@@ -101,7 +103,7 @@ def check_flights(driver, travel_date, travel_class, args, flip_flights):
             sleep(2)
             WebDriverWait(runway, 2).until(EC.presence_of_element_located((By.XPATH, "//*[@class='css-1mu1mk2']"))).send_keys(Keys.ENTER)
         else: #TRAVEL DATE
-            print('Selecting travel date')
+            print('\tSelecting travel date')
             try:
                 #remove cookie popup
                 WebDriverWait(runway, 2).until(EC.element_to_be_clickable((By.XPATH, "//*[@class='optanon-alert-box-button-middle accept-cookie-container']"))).click()
@@ -125,6 +127,7 @@ def check_flights(driver, travel_date, travel_class, args, flip_flights):
             sleep(1)
             WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.XPATH, "//*[contains(@data-testid, 'dialogConfirmation')]"))).click()
     
+    sleep(1.5)
     WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.XPATH, "//*[@class='submit-btn']"))).click()
 
     #continue on currency prompt
@@ -133,10 +136,15 @@ def check_flights(driver, travel_date, travel_class, args, flip_flights):
     except TimeoutException:
         pass
 
+    #loading flights can and does take awhile therefore sleeps aren't effective in determining if the page is loaded
+    flights_loaded = False
+    while not flights_loaded:
+        flights_loaded = check_loading(driver, 'loader')
+
     for key, val in travel_class.items():
-        print('Checking for reward flights')
+        print('\tChecking for reward flights')
         flights_found.append(f'{flight_text} {val} class flights found :D') if detect_rewards(driver, key, args['verbose']) else flights_found.append(f'{flight_text} No {val} class flights found :(')
-        print('Checking for other flights')
+        print('\tChecking for other flights')
         flights_found.extend(detect_surrounding_flights(driver))
 
     return flights_found
@@ -151,19 +159,19 @@ def detect_rewards(driver, travel_class, verbose):
        that a reward flight is available
     """
     
-    if WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, f"//*[@value='{travel_class}']"))).get_attribute('aria-selected') == 'false':
+    if WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, f"//button[@value='{travel_class}']"))).get_attribute('aria-selected') == 'false':
         WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, f"//*[@value='{travel_class}']"))).click()
 
         load_complete = False
         while not load_complete:
-            load_complete = check_loading(driver)
+            load_complete = check_loading(driver, 'loading-flights-text')
     try:
         if verbose:
-            for i in range(3):
+            for _ in range(3):
                 driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.PAGE_DOWN)
-            WebDriverWait(driver, 5).until(EC.presence_of_all_elements_located((By.XPATH, "//*[@class='shape-top-right-container ng-star-inserted']")))
+            WebDriverWait(driver, 10).until(EC.presence_of_all_elements_located((By.XPATH, "//*[@class='shape-top-right-container ng-star-inserted']")))
         else:
-            WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, "//*[@class='shape-top-right-container ng-star-inserted']")))
+            WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//*[@class='shape-top-right-container ng-star-inserted']")))
         return True
     except TimeoutException:
         return False
@@ -191,11 +199,13 @@ def detect_surrounding_flights(driver):
     return surrounding_flights
 
 
-def check_loading(driver):
+def check_loading(driver, type):
     """Function will contining checking the flight loading 
-       elements and return True once is drops from the page"""
+       elements and return True once is drops from the page""" 
+    
+    print('checking loading')
     try:
-        driver.find_element(By.XPATH, "//*[@class='loading-flights-text']")
+        driver.find_element(By.XPATH, f"//*[@class='{type}']")
     except NoSuchElementException:
         return True
     finally:
@@ -280,6 +290,7 @@ if __name__ == '__main__':
         flight_info.extend(flights)
 
     driver.quit()
+
 
     for x in flight_info:
         if not 'Alt' in x:
