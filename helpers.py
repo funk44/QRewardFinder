@@ -1,9 +1,8 @@
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
-from pathlib import Path
 import undetected_chromedriver as uc
-from pathlib import Path
 from fake_useragent import UserAgent
+from webdriver_manager.chrome import ChromeDriverManager
 
 
 def validate_date(date_val):
@@ -39,6 +38,7 @@ def get_driver():
     ua = UserAgent()
     user_agent = ua.random
 
+    driver_path = ChromeDriverManager().install()
     options = uc.ChromeOptions()
     options.add_argument(f'user-agent={user_agent}')
 
@@ -46,5 +46,4 @@ def get_driver():
     # options.add_argument("--window-size=1920,1080")
     # options.add_argument("start-maximized")
 
-
-    return uc.Chrome(use_subprocess=True, options=options, suppress_welcome=True)
+    return uc.Chrome(driver_executable_path=driver_path, use_subprocess=True, options=options, suppress_welcome=True)
