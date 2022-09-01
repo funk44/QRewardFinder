@@ -40,6 +40,8 @@ def get_driver():
     user_agent = ua.random
 
     options = uc.ChromeOptions()
+    options.add_argument(f'user-agent={user_agent}')
+
     #options.headless = True
     # options.add_argument("--window-size=1920,1080")
     # options.add_argument("start-maximized")
