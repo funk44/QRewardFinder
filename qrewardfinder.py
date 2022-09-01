@@ -203,7 +203,6 @@ def check_loading(driver, type):
     """Function will contining checking the flight loading 
        elements and return True once is drops from the page""" 
     
-    print('checking loading')
     try:
         driver.find_element(By.XPATH, f"//*[@class='{type}']")
     except NoSuchElementException:
